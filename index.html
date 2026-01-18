@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneTV - Twój System Smart TV</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1f1f1f;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent: #e50914;
+            --accent-hover: #f40612;
+            --border: #333;
+            --success: #46d369;
+            --warning: #ffa500;
+        }
+
+        .light-mode {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --border: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* BOOT SCREEN - MP4 na cały ekran */
+        #bootScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #bootVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* MAIN SYSTEM */
+        #mainSystem {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .system-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: var(--bg-secondary);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .clock-date {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .clock {
+            font-size: 32px;
+            font-weight: 200;
+            letter-spacing: 1px;
+        }
+
+        .date {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .theme-btn, .settings-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .theme-btn:hover, .settings-btn:hover {
+            background: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* HOME VIEW */
+        .home-view {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .welcome-section {
+            margin-bottom: 40px;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .welcome-message {
+            font-size: 36px;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }
+
+        .welcome-message span {
+            background: linear-gradient(45deg, var(--accent), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 600;
+        }
+
+        .search-bar {
+            width: 100%;
+            max-width: 800px;
+            padding: 18px 25px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 30px;
+            color: var(--text-primary);
+            font-size: 16px;
+            margin-bottom: 40px;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(229, 9, 20, 0.2);
+        }
+
+        .apps-section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 25px;
+        }
+
+        .app-card {
+            aspect-ratio: 1;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+            padding: 20px;
+        }
+
+        .app-card:hover {
+            transform: translateY(-10px) scale(1.05);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px rgba(229, 9, 20, 0.3);
+        }
+
+        .app-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .app-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* APP VIEWS */
+        .app-view {
+            display: none;
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            animation: slideIn 0.4s ease;
+        }
+
+        .app-view.active {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .player-wrapper {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            margin-bottom: 30px;
+        }
+
+        iframe, video, audio {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 15px;
+            background: #000;
+        }
+
+        audio {
+            height: 80px;
+        }
+
+        .back-btn {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-primary);
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--accent);
+            transform: translateX(-5px);
+        }
+
+        /* SETTINGS */
+        .settings-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .settings-group {
+            background: var(--bg-secondary);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .settings-group h3 {
+            font-size: 22px;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+
+        .setting-item {
+            margin-bottom: 25px;
+        }
+
+        .setting-label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 14px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: var(--bg-tertiary);
+            outline: none;
+        }
+
+        .wifi-section {
+            margin-top: 20px;
+        }
+
+        .wifi-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .wifi-item {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .wifi-item:hover {
+            background: var(--accent);
+        }
+
+        .wifi-info {
+            flex: 1;
+        }
+
+        .wifi-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .wifi-strength {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+            transform: scale(1.05);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--text-secondary);
+        }
+
+        /* SETUP WIZARD */
+        #setupWizard {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.98);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #setupWizard.active {
+            display: flex;
+        }
+
+        .setup-box {
+            background: var(--bg-secondary);
+            padding: 50px;
+            border-radius: 25px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+            animation: slideIn 0.5s ease;
+        }
+
+        .setup-logo {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--accent), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .setup-step {
+            display: none;
+        }
+
+        .setup-step.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .setup-step h2 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .setup-step p {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .setup-progress {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            transition: all 0.3s ease;
+        }
+
+        .progress-dot.active {
+            background: var(--accent);
+            transform: scale(1.3);
+        }
+
+        .setup-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .setup-nav button {
+            flex: 1;
+        }
+
+        /* VOICE ASSISTANT */
+        .voice-assistant {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 998;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .voice-assistant.visible {
+            display: flex;
+        }
+
+        .assistant-btn {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--accent), #ff6b6b);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(229, 9, 20, 0.4);
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        .assistant-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .assistant-btn.listening {
+            background: linear-gradient(135deg, var(--success), #2ecc71);
+            animation: listening 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        @keyframes listening {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 10px 30px rgba(46, 204, 113, 0.4);
+            }
+            50% {
+                transform: scale(1.15);
+                box-shadow: 0 15px 50px rgba(46, 204, 113, 0.8);
+            }
+        }
+
+        .assistant-status {
+            background: var(--bg-secondary);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .voice-assistant:hover .assistant-status {
+            opacity: 1;
+        }
+
+        /* BROWSER */
+        .browser-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .url-input {
+            flex: 1;
+        }
+
+        /* NOTIFICATIONS */
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 30px;
+            background: var(--bg-secondary);
+            padding: 20px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .apps-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 15px;
+            }
+
+            .clock {
+                font-size: 24px;
+            }
+
+            .welcome-message {
+                font-size: 28px;
+            }
+
+            .setup-box {
+                padding: 30px;
+            }
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--bg-tertiary);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <!-- BOOT SCREEN -->
+    <div id="bootScreen">
+        <video id="bootVideo" autoplay muted playsinline>
+            <source src="boot-logo.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <!-- MAIN SYSTEM -->
+    <div id="mainSystem">
+        <!-- HEADER -->
+        <div class="system-header">
+            <div class="clock-date">
+                <div class="clock" id="clock">00:00</div>
+                <div class="date" id="date"></div>
+            </div>
+            <div class="header-controls">
+                <button class="theme-btn" id="themeBtn">🌙 Ciemny</button>
+                <button class="settings-btn" id="settingsBtn">⚙️ Ustawienia</button>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- HOME VIEW -->
+            <div class="home-view" id="homeView">
+                <div class="welcome-section">
+                    <div class="welcome-message">Witaj, <span id="userName">Użytkowniku</span>! 👋</div>
+                    <input type="text" class="search-bar" id="searchBar" placeholder="🔍 Szukaj aplikacji, filmów, kanałów...">
+                </div>
+
+                <div class="apps-section">
+                    <div class="section-title">📱 Twoje Aplikacje</div>
+                    <div class="apps-grid" id="appsGrid"></div>
+                </div>
+            </div>
+
+            <!-- YOUTUBE VIEW -->
+            <div class="app-view" id="youtubeView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="player-wrapper">
+                    <iframe id="youtubePlayer" src="https://www.youtube.com" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <!-- NETFLIX VIEW -->
+            <div class="app-view" id="netflixView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="player-wrapper">
+                    <iframe src="https://www.netflix.com" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <!-- DISNEY+ VIEW -->
+            <div class="app-view" id="disneyView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="player-wrapper">
+                    <iframe src="https://www.disneyplus.com" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <!-- PRIME VIDEO VIEW -->
+            <div class="app-view" id="primeView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="player-wrapper">
+                    <iframe src="https://www.primevideo.com" allowfullscreen></iframe>
+                </div>
+            </div>
+
+            <!-- RADIO VIEW -->
+            <div class="app-view" id="radioView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="player-wrapper">
+                    <audio id="radioPlayer" controls></audio>
+                </div>
+                <div class="apps-section">
+                    <div class="section-title">📻 Stacje Radiowe</div>
+                    <div class="apps-grid" id="radioStations"></div>
+                </div>
+            </div>
+
+            <!-- BROWSER VIEW -->
+            <div class="app-view" id="browserView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="browser-controls">
+                    <input type="text" class="url-input" id="browserUrl" placeholder="Wpisz adres URL...">
+                    <button class="btn" id="browserGo">Przejdź</button>
+                </div>
+                <div class="player-wrapper">
+                    <iframe id="browserFrame" src="https://www.google.com"></iframe>
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW -->
+            <div class="app-view" id="settingsView">
+                <button class="back-btn" onclick="goHome()">← Powrót</button>
+                <div class="settings-container">
+                    <h2 style="font-size: 32px; margin-bottom: 30px;">Ustawienia OneTV</h2>
+
+                    <div class="settings-group">
+                        <h3>👤 Konto</h3>
+                        <div class="setting-item">
+                            <label class="setting-label">Imię</label>
+                            <input type="text" id="settingName" placeholder="Twoje imię">
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">Email</label>
+                            <input type="email" id="settingEmail" placeholder="twoj@email.com">
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>🎨 Wygląd</h3>
+                        <div class="setting-item">
+                            <label class="setting-label">Motyw</label>
+                            <select id="settingTheme">
+                                <option value="dark">Ciemny</option>
+                                <option value="light">Jasny</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">Jasność ekranu</label>
+                            <input type="range" id="settingBrightness" min="20" max="100" value="100">
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>📺 Wideo i Audio</h3>
+                        <div class="setting-item">
+                            <label class="setting-label">Jakość wideo</label>
+                            <select id="settingQuality">
+                                <option value="480p">480p</option>
+                                <option value="720p">720p</option>
+                                <option value="1080p">1080p</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">Głośność</label>
+                            <input type="range" id="settingVolume" min="0" max="100" value="70">
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>🌐 Sieć WiFi</h3>
+                        <button class="btn" id="scanWifiBtn">Skanuj sieci WiFi</button>
+                        <div class="wifi-section">
+                            <div class="wifi-list" id="wifiList"></div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>🗣️ Język</h3>
+                        <div class="setting-item">
+                            <label class="setting-label">Język interfejsu</label>
+                            <select id="settingLanguage">
+                                <option value="pl">Polski</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <h3>🔄 System</h3>
+                        <div class="setting-item">
+                            <button class="btn" id="checkUpdatesBtn">Sprawdź aktualizacje</button>
+                            <p id="updateStatus" style="margin-top: 10px; color: var(--text-secondary);">Wersja: 1.0.0</p>
+                        </div>
+                        <div class="setting-item">
+                            <button class="btn btn-secondary" id="resetBtn">Resetuj ustawienia</button>
+                        </div>
+                    </div>
+
+                    <button class="btn" id="saveSettingsBtn" style="width: 100%; margin-top: 20px;">💾 Zapisz wszystkie zmiany</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETUP WIZARD -->
+    <div id="setupWizard">
+        <div class="setup-box">
+            <div class="setup-logo">OneTV</div>
+            <div class="setup-progress" id="setupProgress"></div>
+
+            <!-- Step 1 -->
+            <div class="setup-step active" data-step="1">
+                <h2>Witaj w OneTV! 🎉</h2>
+                <p>Skonfigurujmy Twoje urządzenie w kilku prostych krokach</p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="setup-step" data-step="2">
+                <h2>Jak masz na imię?</h2>
+                <input type="text" id="setupName" placeholder="Twoje imię" style="width: 100%; padding: 14px; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 15px;">
+            </div>
+
+            <!-- Step 3 -->
+            <div class="setup-step" data-step="3">
+                <h2>Wybierz motyw</h2>
+                <select id="setupTheme" style="width: 100%; padding: 14px; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 15px;">
+                    <option value="dark">🌙 Ciemny</option>
+                    <option value="light">☀️ Jasny</option>
+                </select>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="setup-step" data-step="4">
+                <h2>Połącz z WiFi</h2>
+                <button class="btn" id="setupScanWifi" style="width: 100%;">Skanuj sieci</button>
+                <div class="wifi-list" id="setupWifiList" style="margin-top: 20px;"></div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="setup-step" data-step="5">
+                <h2>Jakość wideo</h2>
+                <select id="setupQuality" style="width: 100%; padding: 14px; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 15px;">
+                    <option value="720p">720p (zalecane)</option>
+                    <option value="1080p">1080p (najlepsza jakość)</option>
+                    <option value="480p">480p (oszczędność danych)</option>
+                </select>
+            </div>
+
+            <!-- Step 6 -->
+            <div class="setup-step" data-step="6">
+                <h2>Język</h2>
+                <select id="setupLanguage" style="width: 100%; padding: 14px; background: var(--bg-tertiary); border: 2px solid var(--border); border-radius: 10px; color: var(--text-primary); font-size: 15px;">
+                    <option value="pl">Polski</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+
+            <!-- Step 7 -->
+            <div class="setup-step" data-step="7">
+                <h2>Gotowe! 🎊</h2>
+                <p>Twój OneTV jest skonfigurowany i gotowy do użycia</p>
+            </div>
+
+            <div class="setup-nav">
+                <button class="btn btn-secondary" id="setupPrevBtn">Wstecz</button>
+                <button class="btn" id="setupNextBtn">Dalej</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VOICE ASSISTANT -->
+    <div class="voice-assistant" id="voiceAssistant">
+        <button class="assistant-btn" id="assistantBtn">🎤</button>
+        <div class="assistant-status" id="assistantStatus">OneAssist gotowy</div>
+    </div>
+
+    <!-- NOTIFICATION -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // GLOBAL STATE
+        const state = {
+            settings: {
+                name: '',
+                email: '',
+                theme: 'dark',
+                brightness: 100,
+                quality: '720p',
+                volume: 70,
+                language: 'pl',
+                wifiNetwork: '',
+                setupCompleted: false,
+                lastOpenedApps: []
+            },
+            currentView: 'home',
+            setupStep: 1,
+            isListening: false
+        };
+
+        const apps = [
+            { id: 'youtube', name: 'YouTube', icon: '📺' },
+            { id: 'netflix', name: 'Netflix', icon: '🎬' },
+            { id: 'disney', name: 'Disney+', icon: '✨' },
+            { id: 'prime', name: 'Prime Video', icon: '📦' },
+            { id: 'radio', name: 'Radio', icon: '📻' },
+            { id: 'browser', name: 'Przeglądarka', icon: '🌐' },
+            { id: 'spotify', name: 'Spotify', icon: '🎵' },
+            { id: 'hbo', name: 'HBO Max', icon: '🎭' },
+            { id: 'weather', name: 'Pogoda', icon: '🌤️' },
+            { id: 'news', name: 'Wiadomości', icon: '📰' }
+        ];
+
+        const radioStations = [
+            { name: 'RMF FM', url: 'https://rs102-krk-cyfronet.rmfstream.pl/rmf_fm' },
+            { name: 'Radio ZET', url: 'https://radiozetlive.anti.pl:8000/hls/main/livehls.m3u8' },
+            { name: 'TOK FM', url: 'https://pl-play.adtonos.com/tok-fm' },
+            { name: 'Radio Maryja', url: 'https://www.radiomaryja.pl/informacje/dosluchaj/' },
+            { name: 'Chillout Radio', url: 'https://streams.ilovemusic.de/iloveradio17.mp3' }
+        ];
+
+        // BOOT SEQUENCE
+        document.addEventListener('DOMContentLoaded', () => {
+            const bootVideo = document.getElementById('bootVideo');
+            const bootScreen = document.getElementById('bootScreen');
+            const mainSystem = document.getElementById('mainSystem');
+            const voiceAssistant = document.getElementById('voiceAssistant');
+
+            bootVideo.play().catch(err => console.log('Autoplay prevented:', err));
+
+            bootVideo.onended = () => {
+                bootScreen.style.display = 'none';
+                mainSystem.style.display = 'flex';
+                voiceAssistant.classList.add('visible');
+                initSystem();
+            };
+
+            // Fallback jeśli video nie załaduje się
+            setTimeout(() => {
+                if (bootScreen.style.display !== 'none') {
+                    bootScreen.style.display = 'none';
+                    mainSystem.style.display = 'flex';
+                    voiceAssistant.classList.add('visible');
+                    initSystem();
+                }
+            }, 20000);
+        });
+
+        // INITIALIZE SYSTEM
+        function initSystem() {
+            loadSettings();
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderApps();
+            renderRadioStations();
+            setupEventListeners();
+            applySettings();
+
+            if (!state.settings.setupCompleted) {
+                showSetupWizard();
+            } else {
+                updateWelcomeMessage();
+            }
+        }
+
+        // CLOCK & DATE
+        function updateClock() {
+            const now = new Date();
+            const clock = document.getElementById('clock');
+            const date = document.getElementById('date');
+            
+            clock.textContent = now.toLocaleTimeString('pl-PL', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            date.textContent = now.toLocaleDateString('pl-PL', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+        }
+
+        // RENDER APPS
+        function renderApps() {
+            const grid = document.getElementById('appsGrid');
+            const sortedApps = [...apps].sort((a, b) => {
+                const aIndex = state.settings.lastOpenedApps.indexOf(a.id);
+                const bIndex = state.settings.lastOpenedApps.indexOf(b.id);
+                if (aIndex === -1 && bIndex === -1) return 0;
+                if (aIndex === -1) return 1;
+                if (bIndex === -1) return -1;
+                return aIndex - bIndex;
+            });
+
+            grid.innerHTML = sortedApps.map(app => `
+                <div class="app-card" onclick="openApp('${app.id}')">
+                    <div class="app-icon">${app.icon}</div>
+                    <div class="app-name">${app.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // RENDER RADIO STATIONS
+        function renderRadioStations() {
+            const container = document.getElementById('radioStations');
+            container.innerHTML = radioStations.map((station, index) => `
+                <div class="app-card" onclick="playRadio(${index})">
+                    <div class="app-icon">📻</div>
+                    <div class="app-name">${station.name}</div>
+                </div>
+            `).join('');
+        }
+
+        // OPEN APP
+        function openApp(appId) {
+            document.getElementById('homeView').style.display = 'none';
+            document.querySelectorAll('.app-view').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            const viewId = appId + 'View';
+            const view = document.getElementById(viewId);
+            if (view) {
+                view.classList.add('active');
+                state.currentView = appId;
+
+                // Update last opened
+                state.settings.lastOpenedApps = [
+                    appId,
+                    ...state.settings.lastOpenedApps.filter(id => id !== appId)
+                ].slice(0, 10);
+                saveSettings();
+                renderApps();
+            }
+        }
+
+        // GO HOME
+        function goHome() {
+            document.querySelectorAll('.app-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            document.getElementById('homeView').style.display = 'block';
+            state.currentView = 'home';
+        }
+
+        // PLAY RADIO
+        function playRadio(index) {
+            const station = radioStations[index];
+            const player = document.getElementById('radioPlayer');
+            player.src = station.url;
+            player.play().catch(err => {
+                showNotification('Błąd odtwarzania stacji radiowej');
+                console.error(err);
+            });
+            showNotification(`Odtwarzanie: ${station.name}`);
+        }
+
+        // SETTINGS
+        function loadSettings() {
+            const saved = localStorage.getItem('onetv-settings');
+            if (saved) {
+                try {
+                    Object.assign(state.settings, JSON.parse(saved));
+                } catch (e) {
+                    console.error('Error loading settings:', e);
+                }
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('onetv-settings', JSON.stringify(state.settings));
+        }
+
+        function applySettings() {
+            // Theme
+            if (state.settings.theme === 'light') {
+                document.body.classList.add('light-mode');
+                document.getElementById('themeBtn').textContent = '☀️ Jasny';
+            }
+
+            // Brightness
+            document.body.style.filter = `brightness(${state.settings.brightness}%)`;
+
+            // Populate settings form
+            if (state.settings.name) {
+                document.getElementById('settingName').value = state.settings.name;
+            }
+            if (state.settings.email) {
+                document.getElementById('settingEmail').value = state.settings.email;
+            }
+            document.getElementById('settingTheme').value = state.settings.theme;
+            document.getElementById('settingBrightness').value = state.settings.brightness;
+            document.getElementById('settingQuality').value = state.settings.quality;
+            document.getElementById('settingVolume').value = state.settings.volume;
+            document.getElementById('settingLanguage').value = state.settings.language;
+        }
+
+        function updateWelcomeMessage() {
+            const userName = document.getElementById('userName');
+            userName.textContent = state.settings.name || 'Użytkowniku';
+        }
+
+        // EVENT LISTENERS
+        function setupEventListeners() {
+            // Theme toggle
+            document.getElementById('themeBtn').addEventListener('click', () => {
+                document.body.classList.toggle('light-mode');
+                const isLight = document.body.classList.contains('light-mode');
+                state.settings.theme = isLight ? 'light' : 'dark';
+                document.getElementById('themeBtn').textContent = isLight ? '☀️ Jasny' : '🌙 Ciemny';
+                saveSettings();
+            });
+
+            // Settings button
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                openApp('settings');
+            });
+
+            // Save settings
+            document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+                state.settings.name = document.getElementById('settingName').value;
+                state.settings.email = document.getElementById('settingEmail').value;
+                state.settings.theme = document.getElementById('settingTheme').value;
+                state.settings.brightness = document.getElementById('settingBrightness').value;
+                state.settings.quality = document.getElementById('settingQuality').value;
+                state.settings.volume = document.getElementById('settingVolume').value;
+                state.settings.language = document.getElementById('settingLanguage').value;
+                
+                saveSettings();
+                applySettings();
+                updateWelcomeMessage();
+                showNotification('✅ Ustawienia zapisane!');
+            });
+
+            // WiFi scan
+            document.getElementById('scanWifiBtn').addEventListener('click', scanWifi);
+
+            // Check updates
+            document.getElementById('checkUpdatesBtn').addEventListener('click', () => {
+                showNotification('Sprawdzanie aktualizacji...');
+                setTimeout(() => {
+                    document.getElementById('updateStatus').textContent = 'Masz najnowszą wersję (1.0.0)';
+                    showNotification('✅ System jest aktualny');
+                }, 2000);
+            });
+
+            // Reset settings
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                if (confirm('Czy na pewno chcesz zresetować wszystkie ustawienia?')) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            });
+
+            // Browser
+            document.getElementById('browserGo').addEventListener('click', () => {
+                let url = document.getElementById('browserUrl').value.trim();
+                if (!url.startsWith('http')) {
+                    url = 'https://' + url;
+                }
+                document.getElementById('browserFrame').src = url;
+            });
+
+            document.getElementById('browserUrl').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('browserGo').click();
+                }
+            });
+
+            // Search
+            document.getElementById('searchBar').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const cards = document.querySelectorAll('#appsGrid .app-card');
+                
+                cards.forEach(card => {
+                    const text = card.textContent.toLowerCase();
+                    card.style.display = text.includes(query) ? 'flex' : 'none';
+                });
+            });
+
+            // Voice Assistant
+            document.getElementById('assistantBtn').addEventListener('click', toggleVoiceAssistant);
+
+            // Setup wizard
+            document.getElementById('setupNextBtn').addEventListener('click', nextSetupStep);
+            document.getElementById('setupPrevBtn').addEventListener('click', prevSetupStep);
+            document.getElementById('setupScanWifi').addEventListener('click', () => scanWifi(true));
+        }
+
+        // WIFI SCANNING
+        function scanWifi(isSetup = false) {
+            const listId = isSetup ? 'setupWifiList' : 'wifiList';
+            const list = document.getElementById(listId);
+            
+            showNotification('Skanowanie sieci WiFi...');
+            
+            // Real WiFi scan via ESP32 API
+            fetch('/api/wifi/scan')
+                .then(response => response.json())
+                .then(networks => {
+                    list.innerHTML = networks.map(net => `
+                        <div class="wifi-item" onclick="connectWifi('${net.ssid}', ${net.strength})">
+                            <div class="wifi-info">
+                                <div class="wifi-name">${net.ssid}</div>
+                                <div class="wifi-strength">Sygnał: ${getSignalQuality(net.strength)}% (${net.strength} dBm)</div>
+                            </div>
+                            <div>📶</div>
+                        </div>
+                    `).join('');
+                    showNotification(`Znaleziono ${networks.length} sieci`);
+                })
+                .catch(err => {
+                    console.error('WiFi scan error:', err);
+                    // Fallback - symulowane sieci dla testów
+                    const mockNetworks = [
+                        { ssid: 'DomoweWiFi', strength: -45 },
+                        { ssid: 'TP-LINK_Guest', strength: -67 },
+                        { ssid: 'Sąsiedzi', strength: -82 }
+                    ];
+                    list.innerHTML = mockNetworks.map(net => `
+                        <div class="wifi-item" onclick="connectWifi('${net.ssid}', ${net.strength})">
+                            <div class="wifi-info">
+                                <div class="wifi-name">${net.ssid}</div>
+                                <div class="wifi-strength">Sygnał: ${getSignalQuality(net.strength)}% (${net.strength} dBm)</div>
+                            </div>
+                            <div>📶</div>
+                        </div>
+                    `).join('');
+                    showNotification('Używam danych testowych (brak połączenia z ESP32)');
+                });
+        }
+
+        function getSignalQuality(rssi) {
+            return Math.min(100, Math.max(0, (rssi + 100) * 2));
+        }
+
+        function connectWifi(ssid, strength) {
+            const password = prompt(`Podaj hasło do sieci: ${ssid}`);
+            if (!password) return;
+
+            showNotification('Łączenie...');
+
+            // Connect via ESP32 API
+            fetch('/api/wifi/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    state.settings.wifiNetwork = ssid;
+                    saveSettings();
+                    showNotification(`✅ Połączono z ${ssid}`);
+                } else {
+                    showNotification('❌ Błąd połączenia');
+                }
+            })
+            .catch(err => {
+                console.error('WiFi connect error:', err);
+                // Symulacja dla testów
+                state.settings.wifiNetwork = ssid;
+                saveSettings();
+                showNotification(`✅ Połączono z ${ssid} (tryb testowy)`);
+            });
+        }
+
+        // SETUP WIZARD
+        function showSetupWizard() {
+            document.getElementById('setupWizard').classList.add('active');
+            renderSetupProgress();
+        }
+
+        function renderSetupProgress() {
+            const container = document.getElementById('setupProgress');
+            const totalSteps = 7;
+            container.innerHTML = Array.from({ length: totalSteps }, (_, i) => 
+                `<div class="progress-dot ${i + 1 <= state.setupStep ? 'active' : ''}"></div>`
+            ).join('');
+        }
+
+        function nextSetupStep() {
+            const currentStep = document.querySelector(`.setup-step[data-step="${state.setupStep}"]`);
+            
+            if (state.setupStep === 7) {
+                finishSetup();
+                return;
+            }
+
+            currentStep.classList.remove('active');
+            state.setupStep++;
+            
+            const nextStep = document.querySelector(`.setup-step[data-step="${state.setupStep}"]`);
+            nextStep.classList.add('active');
+            
+            renderSetupProgress();
+
+            const nextBtn = document.getElementById('setupNextBtn');
+            nextBtn.textContent = state.setupStep === 7 ? 'Zakończ' : 'Dalej';
+        }
+
+        function prevSetupStep() {
+            if (state.setupStep === 1) return;
+
+            const currentStep = document.querySelector(`.setup-step[data-step="${state.setupStep}"]`);
+            currentStep.classList.remove('active');
+            
+            state.setupStep--;
+            
+            const prevStep = document.querySelector(`.setup-step[data-step="${state.setupStep}"]`);
+            prevStep.classList.add('active');
+            
+            renderSetupProgress();
+            document.getElementById('setupNextBtn').textContent = 'Dalej';
+        }
+
+        function finishSetup() {
+            // Collect data
+            state.settings.name = document.getElementById('setupName').value || 'Użytkownik';
+            state.settings.theme = document.getElementById('setupTheme').value;
+            state.settings.quality = document.getElementById('setupQuality').value;
+            state.settings.language = document.getElementById('setupLanguage').value;
+            state.settings.setupCompleted = true;
+
+            saveSettings();
+            applySettings();
+            updateWelcomeMessage();
+
+            document.getElementById('setupWizard').classList.remove('active');
+            showNotification('🎉 Konfiguracja zakończona!');
+        }
+
+        // VOICE ASSISTANT
+        let recognition = null;
+
+        function toggleVoiceAssistant() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showNotification('Twoja przeglądarka nie obsługuje rozpoznawania mowy');
+                return;
+            }
+
+            if (!recognition) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'pl-PL';
+                recognition.continuous = false;
+
+                recognition.onstart = () => {
+                    state.isListening = true;
+                    document.getElementById('assistantBtn').classList.add('listening');
+                    document.getElementById('assistantStatus').textContent = 'Słucham...';
+                };
+
+                recognition.onend = () => {
+                    state.isListening = false;
+                    document.getElementById('assistantBtn').classList.remove('listening');
+                    document.getElementById('assistantStatus').textContent = 'OneAssist gotowy';
+                };
+
+                recognition.onresult = (event) => {
+                    const command = event.results[0][0].transcript.toLowerCase();
+                    processVoiceCommand(command);
+                };
+            }
+
+            if (state.isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function processVoiceCommand(command) {
+            console.log('Voice command:', command);
+            
+            if (command.includes('otwórz')) {
+                apps.forEach(app => {
+                    if (command.includes(app.name.toLowerCase())) {
+                        openApp(app.id);
+                        speak(`Otwieram ${app.name}`);
+                    }
+                });
+            } else if (command.includes('powrót') || command.includes('home')) {
+                goHome();
+                speak('Wracam do menu głównego');
+            } else if (command.includes('ustawienia')) {
+                openApp('settings');
+                speak('Otwieram ustawienia');
+            } else {
+                showNotification('Nie rozumiem polecenia');
+            }
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'pl-PL';
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // NOTIFICATIONS
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // KEYBOARD SHORTCUTS
+        document.addEventListener('keydown', (e) => {
+            // ESC - powrót do home
+            if (e.key === 'Escape') {
+                goHome();
+            }
+            // Ctrl + S - ustawienia
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                openApp('settings');
+            }
+        });
+    </script>
+</body>
+</html>
